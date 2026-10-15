@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Balap Robot Cerdas</title>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<style>
+:root{
+  --c1:#1e6fe0; --c2:#e03a3a; --c3:#f2b705; --c4:#2fa84f;
+  --ink:#16324f; --muted:#5b7089; --card:#fff; --accent:#0b5ed7;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color:var(--ink);
+  background:linear-gradient(180deg,#bfe6ff 0%,#e9f7ff 60%,#fff 100%);
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;
+}
+.hidden{display:none!important}
+.screen{min-height:100vh;padding:14px;display:flex;flex-direction:column;align-items:center}
+#lobby{justify-content:center}
+
+/* ---------- kartu & form ---------- */
+.card{background:var(--card);border-radius:18px;box-shadow:0 10px 30px rgba(10,60,120,.18);padding:26px;width:100%;max-width:680px}
+.card h1{margin:6px 0 4px;font-size:clamp(1.6rem,4vw,2.3rem);text-align:center;color:#0a3d91}
+.sub{text-align:center;color:var(--muted);margin:0 0 18px}
+.logo-row{display:flex;justify-content:center;gap:6px}
+.logo-row svg{width:54px;height:54px}
+label{display:block;font-weight:700;font-size:.9rem;margin:12px 0 6px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row.center{justify-content:center;margin-top:16px}
+input[type=text],input[type=number],select{
+  font:inherit;padding:11px 12px;border:2px solid #cfdcec;border-radius:10px;background:#fff;color:var(--ink);
+  -webkit-user-select:text;user-select:text;
+}
+input[type=text]{flex:1;min-width:200px}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.opts input,.opts select{width:100%}
+.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:11px 18px;cursor:pointer;color:#fff;background:var(--accent);transition:transform .08s,filter .15s}
+.btn:hover:not(:disabled){filter:brightness(1.1)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.alt{background:#6c5ce7}
+.btn.ghost{background:#e8f0fb;color:#0a3d91}
+.btn.big{background:#1f9d4d;font-size:1.25rem;padding:14px 28px}
+#status{min-height:1.4em;margin:12px 0 0;font-weight:600;text-align:center}
+#status.ok{color:#168a3c} #status.err{color:#c0392b} #status.info{color:#8a6d00}
+details{margin-top:18px;background:#f4f8fd;border-radius:12px;padding:10px 14px;font-size:.92rem}
+summary{cursor:pointer;font-weight:700}
+details ol{padding-left:20px;margin:8px 0}
+table.demo{border-collapse:collapse;width:100%;font-size:.85rem;margin:8px 0;background:#fff}
+table.demo th,table.demo td{border:1px solid #cdd9e8;padding:4px 8px;text-align:left}
+table.demo th{background:#e3eefb}
+code{background:#e8eef6;padding:1px 5px;border-radius:5px;font-size:.9em}
+
+#fsBtn{position:fixed;top:10px;right:10px;z-index:50;background:rgba(255,255,255,.9);border:2px solid #cfdcec;border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:700;color:var(--ink)}
+
+/* ---------- game ---------- */
+#game{gap:12px;max-width:1300px;margin:0 auto}
+.topbar{width:100%;display:flex;align-items:center;gap:12px;padding-right:90px}
+.topbar strong{font-size:1.2rem;color:#0a3d91}
+.topbar span{color:var(--muted);flex:1}
+.topbar button{font:inherit;font-weight:700;border:0;background:#fde2e0;color:#b02a20;border-radius:8px;padding:6px 12px;cursor:pointer}
+
+#arena{width:100%;background:#2f3b4a;border-radius:14px;padding:8px;box-shadow:inset 0 0 12px rgba(0,0,0,.4)}
+.lane{display:flex;align-items:stretch;height:74px;border-bottom:3px dashed rgba(255,255,255,.35)}
+.lane:last-child{border-bottom:0}
+.lane-label{width:44px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;border-radius:8px 0 0 8px;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.lane-track{position:relative;flex:1}
+.flag{width:26px;background:repeating-conic-gradient(#fff 0 25%,#111 0 50%) 0 0/16px 16px}
+.robot{position:absolute;bottom:4px;width:58px;height:58px;left:calc(var(--p,0) * (100% - 58px));transition:left .5s cubic-bezier(.3,1.4,.5,1)}
+.robot svg{width:100%;height:100%;display:block;filter:drop-shadow(0 3px 2px rgba(0,0,0,.35))}
+.robot.hop svg{animation:hop .45s ease}
+@keyframes hop{0%{transform:translateY(0)}40%{transform:translateY(-14px) rotate(-6deg)}100%{transform:translateY(0)}}
+
+#panels{width:100%;display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:10px}
+.panel{background:#fff;border-radius:14px;border-top:8px solid var(--c);box-shadow:0 6px 16px rgba(10,60,120,.15);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;transition:box-shadow .2s}
+.panel.locked{opacity:.92}
+.ph{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--c)}
+.ph .pc{background:var(--c);color:#fff;border-radius:999px;padding:1px 10px;font-size:.85rem}
+.q{font-weight:800;font-size:clamp(1rem,1.7vw,1.35rem);min-height:3.2em;display:flex;align-items:center;line-height:1.25;word-break:break-word}
+.ans{display:flex;flex-direction:column;gap:7px}
+.ans button{
+  font:inherit;font-weight:700;text-align:left;border:0;border-radius:10px;color:#fff;background:var(--c);
+  padding:12px 12px;min-height:50px;cursor:pointer;display:flex;gap:8px;align-items:center;
+  font-size:clamp(.95rem,1.4vw,1.15rem);word-break:break-word;transition:transform .08s,filter .15s
+}
+.ans button:active:not(:disabled){transform:scale(.98)}
+.ans button:disabled{cursor:default}
+.ans button.good{background:#1f9d4d!important;animation:pop .35s}
+.ans button.bad{background:#d33a2c!important;animation:shake .35s}
+.ans button:disabled:not(.good):not(.bad){filter:grayscale(.6) brightness(1.1);opacity:.65}
+.ans kbd{display:none;font:700 .72rem monospace;background:rgba(255,255,255,.28);border-radius:5px;padding:2px 6px;text-transform:uppercase}
+@media (hover:hover){.ans kbd{display:inline-block}}
+@keyframes pop{50%{transform:scale(1.04)}}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pbar{height:6px;background:#eef2f7;border-radius:3px;overflow:hidden}
+.pbar i{display:block;height:100%;width:0;background:#d33a2c}
+
+/* ---------- overlay ---------- */
+.overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(10,25,50,.88);padding:14px}
+#countdown{color:#fff;font-size:min(32vw,22rem);font-weight:900;text-shadow:0 0 30px rgba(255,255,255,.6);animation:pulse 1s infinite alternate}
+@keyframes pulse{from{transform:scale(.92)}to{transform:scale(1.06)}}
+#resultCard h2{text-align:center;margin:0 0 12px;font-size:clamp(1.4rem,4vw,2rem)}
+#resultCard table{width:100%;border-collapse:collapse;margin-bottom:6px}
+#resultCard th,#resultCard td{padding:8px;text-align:center;border-bottom:1px solid #e3eaf3}
+#resultCard td:nth-child(2),#resultCard th:nth-child(2){text-align:left}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+@media (max-width:820px){
+  #panels{grid-template-columns:repeat(2,1fr)}
+  .opts{grid-template-columns:1fr}
+  .lane{height:62px}
+  .robot{width:48px;height:48px;left:calc(var(--p,0) * (100% - 48px))}
+}
+@media (max-width:480px){ #panels{grid-template-columns:1fr} .card{padding:18px} }
+</style>
+</head>
+<body>
+
+<button id="fsBtn" type="button">⛶ Layar Penuh</button>
+
+<!-- ================= LOBI ================= -->
+<div id="lobby" class="screen">
+  <div class="card">
+    <div class="logo-row" id="logoRow"></div>
+    <h1>Balap Robot Cerdas</h1>
+    <p class="sub">Jawab soal dengan cepat dan tepat. Setiap jawaban benar membuat robotmu maju satu langkah!</p>
+
+    <label for="src">Sumber soal (Google Sheet)</label>
+    <div class="row">
+      <input id="src" type="text" placeholder="Tempel link Google Sheet atau ID-nya" autocomplete="off" spellcheck="false">
+      <button id="loadBtn" class="btn alt" type="button">Muat Soal</button>
+    </div>
+
+    <div class="opts">
+      <div><label for="nPlayers">Jumlah pemain</label>
+        <select id="nPlayers"><option>2</option><option>3</option><option selected>4</option></select></div>
+      <div><label for="nSteps">Langkah ke finish</label>
+        <input id="nSteps" type="number" min="3" max="40" value="10"></div>
+      <div><label for="nPenalty">Hukuman salah (detik)</label>
+        <input id="nPenalty" type="number" min="0" max="10" value="2"></div>
+    </div>
+
+    <p id="status"></p>
+
+    <div class="row center">
+      <button id="startBtn" class="btn big" type="button">▶ Mulai Balapan</button>
+      <button id="shareBtn" class="btn ghost" type="button">🔗 Salin Link Game</button>
+    </div>
+
+    <details>
+      <summary>Cara membuat soal di Google Sheet</summary>
+      <ol>
+        <li>Buat spreadsheet dengan kolom: <b>Pertanyaan</b>, <b>Jawaban benar</b>, lalu <b>2–3 pengecoh</b>. Baris judul (header) boleh ada atau tidak.</li>
+        <li>Klik <b>Bagikan</b> → akses umum: <b>“Siapa saja yang memiliki link”</b> sebagai <b>Pelihat</b>.</li>
+        <li>Salin link sheet, tempel di kolom di atas, lalu klik <b>Muat Soal</b>.</li>
+        <li>Klik <b>Salin Link Game</b> dan bagikan ke siswa. Link itu sudah berisi sumber soalnya.</li>
+      </ol>
+      <table class="demo">
+        <tr><th>Pertanyaan</th><th>Jawaban benar</th><th>Pengecoh 1</th><th>Pengecoh 2</th></tr>
+        <tr><td>7 × 8 = ...</td><td>56</td><td>54</td><td>48</td></tr>
+        <tr><td>Planet terdekat dari Matahari</td><td>Merkurius</td><td>Venus</td><td>Mars</td></tr>
+      </table>
+      <p style="margin:6px 0 0">Tab lain di spreadsheet: tambahkan <code>?gid=NOMOR</code> atau <code>?sheet=NamaTab</code> pada link game, atau salin link dari tab tersebut.</p>
+    </details>
+  </div>
+</div>
+
+<!-- ================= GAME ================= -->
+<div id="game" class="screen hidden">
+  <div class="topbar"><strong>Balap Robot Cerdas</strong><span id="qinfo"></span><button id="quitBtn" type="button">✕ Keluar</button></div>
+  <div id="arena"></div>
+  <div id="panels"></div>
+</div>
+
+<div id="countdown" class="overlay hidden"></div>
+<div id="result" class="overlay hidden"><div class="card" id="resultCard"></div></div>
+
+<script>
+"use strict";
+/* ================== KONFIGURASI & DATA ================== */
+const COLORS = ['#1e6fe0', '#e03a3a', '#f2b705', '#2fa84f'];
+const NAMES  = ['Biru', 'Merah', 'Kuning', 'Hijau'];
+const KEYS   = [['1','2','3','4'], ['q','w','e','r'], ['a','s','d','f'], ['z','x','c','v']];
+const STORE_KEY = 'balapRobot.src';
+
+const SAMPLE = [
+  ["Hasil dari 7 × 8 adalah ...", "56", "54", "48"],
+  ["Planet terdekat dari Matahari adalah ...", "Merkurius", "Venus", "Mars"],
+  ["Gas yang kita hirup untuk bernapas adalah ...", "Oksigen", "Karbon dioksida", "Nitrogen"],
+  ["Sinonim kata 'rajin' adalah ...", "Giat", "Malas", "Lamban"],
+  ["Antonim kata 'tinggi' adalah ...", "Rendah", "Besar", "Panjang"],
+  ["Hewan pemakan tumbuhan disebut ...", "Herbivora", "Karnivora", "Omnivora"],
+  ["Proses tumbuhan membuat makanan disebut ...", "Fotosintesis", "Respirasi", "Evaporasi"],
+  ["Arti ungkapan 'buah bibir' adalah ...", "Bahan pembicaraan orang", "Makanan ringan", "Bibir yang tebal"],
+  ["Hasil dari 144 : 12 adalah ...", "12", "14", "11"],
+  ["Benua terluas di dunia adalah ...", "Asia", "Afrika", "Eropa"],
+  ["Air membeku pada suhu ... °C", "0", "100", "-10"],
+  ["Proklamasi kemerdekaan Indonesia dibacakan tahun ...", "1945", "1942", "1949"],
+  ["Alat musik bambu dari Jawa Barat adalah ...", "Angklung", "Sasando", "Tifa"],
+  ["Bilangan prima di antara berikut adalah ...", "13", "15", "21"]
+].map(r => ({ q: r[0], answer: r[1], options: r.slice(1) }));
+
+/* ================== UTILITAS ================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const qs = new URLSearchParams(location.search);
+
+function robotSVG(c){
+  return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <line x1="32" y1="3" x2="32" y2="12" stroke="#333" stroke-width="3"/><circle cx="32" cy="4" r="3.5" fill="#ff4d4d"/>
+    <rect x="16" y="11" width="32" height="21" rx="7" fill="${c}"/>
+    <rect x="16" y="14" width="32" height="4" fill="#d00"/><rect x="16" y="18" width="32" height="2.5" fill="#fff"/>
+    <circle cx="25" cy="26" r="4.2" fill="#fff"/><circle cx="39" cy="26" r="4.2" fill="#fff"/>
+    <circle cx="26" cy="26.5" r="2" fill="#111"/><circle cx="40" cy="26.5" r="2" fill="#111"/>
+    <rect x="13" y="34" width="38" height="19" rx="6" fill="${c}"/>
+    <rect x="21" y="38" width="22" height="11" rx="3" fill="#fff" opacity=".92"/>
+    <rect x="5" y="36" width="7" height="14" rx="3" fill="#222"/><rect x="52" y="36" width="7" height="14" rx="3" fill="#222"/>
+    <circle cx="22" cy="57" r="5" fill="#222"/><circle cx="42" cy="57" r="5" fill="#222"/>
+    <circle cx="22" cy="57" r="1.8" fill="#aaa"/><circle cx="42" cy="57" r="1.8" fill="#aaa"/>
+  </svg>`;
+}
+$('#logoRow').innerHTML = COLORS.map(robotSVG).join('');
+
+/* ================== SUMBER SOAL (GOOGLE SHEET) ================== */
+// Mengubah input (link / ID / link "publikasikan ke web") menjadi URL CSV.
+function parseSource(raw){
+  raw = raw.trim();
+  let id = raw, gid = qs.get('gid'), sheet = qs.get('sheet'), pub = false, csv;
+
+  if (/^https?:\/\//i.test(raw)){
+    let u;
+    try { u = new URL(raw); } catch(e){ throw new Error('Link tidak valid.'); }
+    if (!/google\.com$/.test(u.hostname)) throw new Error('Gunakan link dari Google Sheets (docs.google.com).');
+    if (u.pathname.includes('/d/e/')) {          // link "Publikasikan ke web"
+      pub = true;
+      u.pathname = u.pathname.replace(/\/pubhtml$/, '/pub');
+      u.searchParams.set('output', 'csv');
+      csv = u.href;
+    } else {
+      const m = u.pathname.match(/\/d\/([\w-]+)/);
+      if (!m) throw new Error('ID Sheet tidak ditemukan di link tersebut.');
+      id = m[1];
+      const g = (u.hash.match(/gid=(\d+)/) || u.search.match(/gid=(\d+)/));
+      if (g) gid = g[1];
+    }
+  } else if (!/^[\w-]{20,}$/.test(raw)) {
+    throw new Error('Isi dengan link Google Sheet atau ID-nya.');
+  }
+
+  if (!pub){
+    csv = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv` +
+          (sheet ? `&sheet=${encodeURIComponent(sheet)}` : (gid ? `&gid=${encodeURIComponent(gid)}` : ''));
+  }
+  return { csv, id, gid, sheet, pub, raw };
+}
+
+// Parser CSV yang benar (tanda kutip, koma di dalam sel, baris baru).
+function parseCSV(t){
+  t = t.replace(/^\uFEFF/, '');
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < t.length; i++){
+    const c = t[i];
+    if (q){
+      if (c === '"'){ if (t[i+1] === '"'){ cur += '"'; i++; } else q = false; }
+      else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r'){ if (c === '\r' && t[i+1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur !== '' || row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+
+function toQuestions(rows){
+  const out = [];
+  rows.forEach((r, i) => {
+    const cells = r.map(c => c.trim());
+    if (i === 0 && (/^(no\.?|pertanyaan|soal|question)$/i.test(cells[0]) || /jawaban|benar|answer/i.test(cells[1] || ''))) return; // header
+    const q = cells[0];
+    const opts = [...new Set(cells.slice(1).filter(Boolean))].slice(0, 4);
+    if (q && opts.length >= 2) out.push({ q, answer: opts[0], options: opts });
+  });
+  return out;
+}
+
+/* ================== STATE ================== */
+let bank = SAMPLE.slice();
+let sourceOk = false;
+let deck = [];
+let players = [];
+let cfg = { players: 4, steps: 10, penalty: 2 };
+let active = false;
+let gameId = 0;
+const later = (fn, ms) => { const id = gameId; setTimeout(() => { if (id === gameId) fn(); }, ms); };
+
+/* ================== LOBI ================== */
+function setStatus(msg, cls){ const s = $('#status'); s.textContent = msg; s.className = cls || ''; }
+
+function useSample(msg){
+  bank = SAMPLE.slice(); sourceOk = false;
+  setStatus(msg || `Memakai ${bank.length} soal contoh. Tempel link Google Sheet untuk soal sendiri.`, 'info');
+}
+
+async function loadSource(){
+  const raw = $('#src').value.trim();
+  if (!raw){ useSample(); return; }
+  $('#loadBtn').disabled = $('#startBtn').disabled = true;
+  setStatus('Memuat soal dari Google Sheet…', 'info');
+  try {
+    const src = parseSource(raw);
+    const res = await fetch(src.csv, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Server menjawab ' + res.status + '.');
+    const text = await res.text();
+    if (/^\s*<(!doctype|html)/i.test(text)) throw new Error('Sheet belum dibagikan untuk umum.');
+    const items = toQuestions(parseCSV(text));
+    if (!items.length) throw new Error('Tidak ada soal valid. Butuh kolom: pertanyaan, jawaban benar, minimal 1 pengecoh.');
+    bank = items; sourceOk = true;
+    try { localStorage.setItem(STORE_KEY, raw); } catch(e){}
+    setStatus(`✓ ${items.length} soal berhasil dimuat dari Google Sheet.`, 'ok');
+  } catch(e){
+    const hint = (e instanceof TypeError)
+      ? 'Tidak bisa membuka sheet. Pastikan akses “Siapa saja yang memiliki link” (Pelihat) dan link-nya benar.'
+      : e.message;
+    useSample(`✗ ${hint} Memakai soal contoh.`);
+    $('#status').className = 'err';
+  } finally {
+    $('#loadBtn').disabled = $('#startBtn').disabled = false;
+  }
+}
+
+function readCfg(){
+  const clamp = (v, a, b, d) => { v = parseInt(v, 10); return isNaN(v) ? d : Math.min(b, Math.max(a, v)); };
+  cfg.players = clamp($('#nPlayers').value, 2, 4, 4);
+  cfg.steps   = clamp($('#nSteps').value, 3, 40, 10);
+  cfg.penalty = clamp($('#nPenalty').value, 0, 10, 2);
+}
+
+async function copyShareLink(){
+  readCfg();
+  const raw = $('#src').value.trim();
+  const u = new URL(location.href.split('#')[0].split('?')[0]);
+  if (raw){
+    try {
+      const s = parseSource(raw);
+      u.searchParams.set('src', s.pub ? raw : s.id);
+      if (!s.pub && s.sheet) u.searchParams.set('sheet', s.sheet);
+      else if (!s.pub && s.gid) u.searchParams.set('gid', s.gid);
+    } catch(e){ setStatus('✗ ' + e.message, 'err'); return; }
+  }
+  u.searchParams.set('players', cfg.players);
+  u.searchParams.set('steps', cfg.steps);
+  u.searchParams.set('penalty', cfg.penalty);
+  const link = u.href;
+  try { await navigator.clipboard.writeText(link); setStatus('✓ Link game disalin ke clipboard.', 'ok'); }
+  catch(e){ window.prompt('Salin link game ini:', link); }
+}
+
+/* ================== GAME ================== */
+function draw(){ if (!deck.length) deck = shuffle(bank.slice()); return deck.pop(); }
+
+function showScreen(name){
+  $('#lobby').classList.toggle('hidden', name !== 'lobby');
+  $('#game').classList.toggle('hidden', name !== 'game');
+}
+
+function buildGame(){
+  const n = cfg.players;
+  $('#arena').innerHTML = players.map((p, i) => `
+    <div class="lane">
+      <div class="lane-label" style="background:${COLORS[i]}">P${i+1}</div>
+      <div class="lane-track"><div class="robot" id="robot${i}" style="--p:0">${robotSVG(COLORS[i])}</div></div>
+      <div class="flag"></div>
+    </div>`).join('');
+  const panels = $('#panels');
+  panels.style.setProperty('--n', n);
+  panels.innerHTML = players.map((p, i) => `
+    <section class="panel" id="panel${i}" style="--c:${COLORS[i]}">
+      <div class="ph"><span>Robot ${NAMES[i]}</span><span class="pc" id="pc${i}">0/${cfg.steps}</span></div>
+      <div class="q" id="q${i}">Siap?</div>
+      <div class="ans" id="a${i}"></div>
+      <div class="pbar"><i id="pb${i}"></i></div>
+    </section>`).join('');
+  $('#qinfo').textContent = `${bank.length} soal • finish di ${cfg.steps} langkah`;
+}
+
+function nextQ(i){
+  const p = players[i], it = draw();
+  p.correct = it.answer;
+  p.opts = shuffle(it.options.slice());
+  p.locked = false;
+  $('#panel' + i).classList.remove('locked');
+  $('#q' + i).textContent = it.q;
+  $('#a' + i).innerHTML = p.opts.map((o, k) =>
+    `<button type="button" data-o="${k}"><kbd>${KEYS[i][k] || ''}</kbd><span>${esc(o)}</span></button>`).join('');
+}
+
+function setButtonsDisabled(i, v){ document.querySelectorAll(`#a${i} button`).forEach(b => b.disabled = v); }
+
+function answer(i, k){
+  const p = players[i];
+  if (!active || !p || p.locked || p.opts[k] === undefined) return;
+  p.locked = true;
+  setButtonsDisabled(i, true);
+  const btns = document.querySelectorAll(`#a${i} button`);
+
+  if (p.opts[k] === p.correct){
+    btns[k].classList.add('good');
+    p.pos++; p.ok++;
+    $('#pc' + i).textContent = `${p.pos}/${cfg.steps}`;
+    const r = $('#robot' + i);
+    r.style.setProperty('--p', p.pos / cfg.steps);
+    r.classList.remove('hop'); void r.offsetWidth; r.classList.add('hop');
+    if (p.pos >= cfg.steps){ finish(i); return; }
+    later(() => nextQ(i), 380);
+  } else {
+    p.bad++;
+    btns[k].classList.add('bad');
+    btns[p.opts.indexOf(p.correct)].classList.add('good');
+    $('#panel' + i).classList.add('locked');
+    const t = cfg.penalty;
+    if (t > 0){
+      const bar = $('#pb' + i);
+      bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth;
+      bar.style.transition = `width ${t}s linear`; bar.style.width = '0';
+    }
+    later(() => nextQ(i), Math.max(t * 1000, 900));
+  }
+}
+
+function countdown(id, done){
+  const el = $('#countdown');
+  const seq = ['3', '2', '1', 'GO!'];
+  el.classList.remove('hidden');
+  let n = 0;
+  el.textContent = seq[0];
+  const timer = setInterval(() => {
+    if (id !== gameId){ clearInterval(timer); el.classList.add('hidden'); return; }
+    n++;
+    if (n < seq.length) el.textContent = seq[n];
+    if (n === seq.length){ clearInterval(timer); el.classList.add('hidden'); done(); }
+  }, 850);
+}
+
+function startGame(){
+  readCfg();
+  gameId++;
+  const id = gameId;
+  deck = shuffle(bank.slice());
+  players = Array.from({ length: cfg.players }, () => ({ pos: 0, ok: 0, bad: 0, locked: true, correct: '', opts: [] }));
+  active = false;
+  $('#result').classList.add('hidden');
+  showScreen('game');
+  buildGame();
+  countdown(id, () => { active = true; players.forEach((_, i) => nextQ(i)); });
+}
+
+function finish(winner){
+  active = false;
+  gameId++;                       // batalkan timer yang tertunda
+  const order = players.map((p, i) => ({ i, ...p }))
+    .sort((a, b) => (b.i === winner) - (a.i === winner) || b.pos - a.pos || b.ok - a.ok || a.bad - b.bad);
+  const medal = ['🥇', '🥈', '🥉', '4'];
+  $('#resultCard').innerHTML = `
+    <h2>🏆 Robot ${NAMES[winner]} Menang!</h2>
+    <table>
+      <tr><th>#</th><th>Robot</th><th>Langkah</th><th>Benar</th><th>Salah</th></tr>
+      ${order.map((o, r) => `<tr><td>${medal[r]}</td><td><span class="dot" style="background:${COLORS[o.i]}"></span>${NAMES[o.i]}</td>
+        <td>${o.pos}/${cfg.steps}</td><td>${o.ok}</td><td>${o.bad}</td></tr>`).join('')}
+    </table>
+    <div class="row center">
+      <button class="btn big" id="againBtn" type="button">↻ Main Lagi</button>
+      <button class="btn ghost" id="toLobbyBtn" type="button">Kembali ke Lobi</button>
+    </div>`;
+  $('#result').classList.remove('hidden');
+  $('#againBtn').onclick = startGame;
+  $('#toLobbyBtn').onclick = toLobby;
+  if (window.confetti){
+    const colors = [COLORS[winner], '#ffffff', '#ffd54a'];
+    confetti({ particleCount: 160, spread: 110, origin: { y: .6 }, colors });
+    setTimeout(() => confetti({ particleCount: 90, angle: 60, spread: 70, origin: { x: 0, y: .7 }, colors }), 350);
+    setTimeout(() => confetti({ particleCount: 90, angle: 120, spread: 70, origin: { x: 1, y: .7 }, colors }), 350);
+  }
+}
+
+function toLobby(){
+  gameId++; active = false;
+  $('#result').classList.add('hidden');
+  $('#countdown').classList.add('hidden');
+  showScreen('lobby');
+}
+
+/* ================== EVENT ================== */
+$('#loadBtn').onclick = loadSource;
+$('#src').addEventListener('keydown', e => { if (e.key === 'Enter') loadSource(); });
+$('#startBtn').onclick = startGame;
+$('#shareBtn').onclick = copyShareLink;
+$('#quitBtn').onclick = toLobby;
+
+$('#panels').addEventListener('click', e => {
+  const b = e.target.closest('button[data-o]');
+  if (!b) return;
+  answer(parseInt(b.closest('.panel').id.replace('panel', ''), 10), parseInt(b.dataset.o, 10));
+});
+
+document.addEventListener('keydown', e => {
+  if (!active || e.ctrlKey || e.metaKey || e.altKey) return;
+  const key = e.key.toLowerCase();
+  for (let i = 0; i < players.length; i++){
+    const k = KEYS[i].indexOf(key);
+    if (k !== -1){ answer(i, k); e.preventDefault(); return; }
+  }
+});
+
+$('#fsBtn').onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen || (()=>{})).call(document.documentElement);
+};
+
+/* ================== INISIALISASI ================== */
+(function init(){
+  const num = (k, el) => { const v = qs.get(k); if (v !== null && v !== '') $(el).value = v; };
+  num('players', '#nPlayers'); num('steps', '#nSteps'); num('penalty', '#nPenalty');
+  let src = qs.get('src') || qs.get('id') || '';
+  if (!src){ try { src = localStorage.getItem(STORE_KEY) || ''; } catch(e){} }
+  $('#src').value = src;
+  if (src) loadSource(); else useSample();
+})();
+</script>
+</body>
+</html>
