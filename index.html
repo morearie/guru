@@ -60,7 +60,7 @@ code{background:#e8eef6;padding:1px 5px;border-radius:5px;font-size:.9em}
 
 /* ---------- game ---------- */
 #game{gap:12px;max-width:1300px;margin:0 auto}
-.topbar{width:100%;display:flex;align-items:center;gap:12px;padding-right:90px}
+.topbar{width:100%;display:flex;align-items:center;gap:12px;padding-right:150px}
 .topbar strong{font-size:1.2rem;color:#0a3d91}
 .topbar span{color:var(--muted);flex:1}
 .topbar button{font:inherit;font-weight:700;border:0;background:#fde2e0;color:#b02a20;border-radius:8px;padding:6px 12px;cursor:pointer}
@@ -282,7 +282,7 @@ function toQuestions(rows){
   const out = [];
   rows.forEach((r, i) => {
     const cells = r.map(c => c.trim());
-    if (i === 0 && (/^(no\.?|pertanyaan|soal|question)$/i.test(cells[0]) || /jawaban|benar|answer/i.test(cells[1] || ''))) return; // header
+    if (i === 0 && (/^(no\.?|pertanyaan|soal|question)$/i.test(cells[0]) || /^(jawaban|answer)/i.test(cells[1] || ''))) return; // header
     const q = cells[0];
     const opts = [...new Set(cells.slice(1).filter(Boolean))].slice(0, 4);
     if (q && opts.length >= 2) out.push({ q, answer: opts[0], options: opts });
